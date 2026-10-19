@@ -1,0 +1,1980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThreadLock - Process Synchronizer & Deadlock Simulator</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#1e1b4b',
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .pulse-glow {
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+    }
+    .pulse-danger {
+      box-shadow: 0 0 20px rgba(244, 63, 94, 0.5);
+    }
+    .pulse-success {
+      box-shadow: 0 0 18px rgba(16, 185, 129, 0.4);
+    }
+    @keyframes pulseRing {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .anim-pulse {
+      animation: pulseRing 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP HEADER / NAV -->
+  <header class="bg-slate-900/90 border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+            <i data-lucide="shield-alert" class="w-5 h-5 text-white"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xl font-black tracking-tight text-white">Thread<span class="text-indigo-400">Lock</span></span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 border border-indigo-700/60 font-mono font-medium">v2.4 • OS Engine</span>
+            </div>
+            <p class="text-xs text-slate-400">Process Synchronizer & Deadlock Simulator</p>
+          </div>
+        </div>
+
+        <!-- Project Team Info (VIT CSE Project) -->
+        <div class="flex flex-wrap items-center gap-2 text-xs bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+          <span class="text-slate-400 font-semibold flex items-center gap-1">
+            <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400"></i> Project Team:
+          </span>
+          <span class="px-2 py-0.5 bg-slate-800 rounded text-slate-300 font-mono">G. Dinesh Karthik (24BCE0060)</span>
+          <span class="px-2 py-0.5 bg-slate-800 rounded text-slate-300 font-mono">N. Vishnuv Vardhan (24BCE0993)</span>
+          <span class="px-2 py-0.5 bg-slate-800 rounded text-slate-300 font-mono">Harsha Vardhann (24BAI0103)</span>
+        </div>
+
+        <!-- Tab Navigation Buttons -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
+          <button onclick="switchTab('simulator')" id="tabBtn-simulator" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all bg-indigo-600 text-white shadow-sm">
+            <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> Interactive Simulator
+          </button>
+          <button onclick="switchTab('banker')" id="tabBtn-banker" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+            <i data-lucide="calculator" class="w-3.5 h-3.5"></i> Banker's Algorithm
+          </button>
+          <button onclick="switchTab('rag')" id="tabBtn-rag" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+            <i data-lucide="network" class="w-3.5 h-3.5"></i> RAG Graph & Cycles
+          </button>
+          <button onclick="switchTab('viva')" id="tabBtn-viva" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+            <i data-lucide="book-open" class="w-3.5 h-3.5"></i> Viva & OS Prep
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+    <!-- ==================== TAB 1: INTERACTIVE SIMULATOR ==================== -->
+    <section id="tab-simulator" class="space-y-6">
+      
+      <!-- Scenario Selector & Master Controls -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl">
+        <div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+          
+          <!-- Scenario Buttons -->
+          <div>
+            <div class="text-xs uppercase tracking-wider font-bold text-slate-400 mb-2 flex items-center gap-1.5">
+              <i data-lucide="sliders" class="w-3.5 h-3.5 text-indigo-400"></i> Active Synchronization Scenario
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button onclick="loadScenario('race')" id="scen-race" class="scenario-btn px-3 py-1.5 text-xs font-medium rounded-lg border transition-all bg-indigo-950 border-indigo-500 text-indigo-200 shadow-sm">
+                Race Condition (Counter)
+              </button>
+              <button onclick="loadScenario('bounded')" id="scen-bounded" class="scenario-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 hover:border-slate-600">
+                Producer-Consumer (Buffer)
+              </button>
+              <button onclick="loadScenario('dining')" id="scen-dining" class="scenario-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 hover:border-slate-600">
+                Dining Philosophers (5 Forks)
+              </button>
+              <button onclick="loadScenario('deadlock')" id="scen-deadlock" class="scenario-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 hover:border-slate-600">
+                Circular Deadlock (T1-T2-R1-R2)
+              </button>
+            </div>
+          </div>
+
+          <!-- Playback & Execution Controls -->
+          <div class="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-start xl:justify-end border-t xl:border-t-0 pt-3 xl:pt-0 border-slate-800">
+            <!-- Mode Toggle Switch (Specific to scenario) -->
+            <div id="modeToggleContainer" class="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+              <span id="modeLabelLeft" class="text-xs font-medium text-amber-400">Unsynchronized</span>
+              <button id="modeSwitchBtn" onclick="toggleScenarioMode()" class="w-11 h-6 flex items-center bg-slate-800 rounded-full p-1 duration-300 cursor-pointer">
+                <div id="modeToggleKnob" class="bg-amber-400 w-4 h-4 rounded-full shadow-md transform duration-300"></div>
+              </button>
+              <span id="modeLabelRight" class="text-xs font-medium text-slate-500">Synchronized (Mutex)</span>
+            </div>
+
+            <!-- Play / Pause / Step / Reset -->
+            <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button id="playPauseBtn" onclick="togglePlay()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1 transition-all">
+                <i data-lucide="play" id="playIcon" class="w-3.5 h-3.5"></i>
+                <span id="playText">Run</span>
+              </button>
+              <button onclick="stepSimulation()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center gap-1 transition-all" title="Execute single atomic step">
+                <i data-lucide="step-forward" class="w-3.5 h-3.5"></i> Step
+              </button>
+              <button onclick="resetSimulation()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center gap-1 transition-all" title="Reset all threads and resources to initial state">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset
+              </button>
+            </div>
+
+            <!-- Speed Selector -->
+            <div class="flex items-center gap-1 text-xs bg-slate-950 px-2 py-1 rounded-xl border border-slate-800">
+              <span class="text-slate-500 text-[10px] uppercase font-bold px-1">Speed:</span>
+              <button onclick="setSimSpeed(1200, this)" class="speed-btn px-2 py-0.5 rounded text-slate-400 hover:text-white">0.5x</button>
+              <button onclick="setSimSpeed(700, this)" class="speed-btn px-2 py-0.5 rounded bg-indigo-900 text-indigo-300 font-bold">1x</button>
+              <button onclick="setSimSpeed(350, this)" class="speed-btn px-2 py-0.5 rounded text-slate-400 hover:text-white">2x</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scenario Description Banner -->
+        <div id="scenarioBanner" class="mt-4 p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-slate-300 flex items-start gap-3">
+          <i data-lucide="info" class="w-4 h-4 text-indigo-400 mt-0.5 shrink-0"></i>
+          <div id="scenarioDescription">
+            <strong>Race Condition:</strong> Threads T1 and T2 read, modify, and write a shared memory counter. Without synchronization, context switches mid-operation overwrite data (lost updates: read 5 → write 6 twice). With <code>ReentrantLock</code>, access is mutually exclusive.
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN SIMULATION WORKSPACE: Left = Visualizer Canvas, Right = Status & Resources -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left 8 Cols: Visualizer Stage -->
+        <div class="lg:col-span-8 space-y-6">
+          
+          <!-- Scenario Interactive Visual Canvas Card -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl relative min-h-[380px] flex flex-col justify-between overflow-hidden">
+            <div class="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-4">
+              <div class="flex items-center gap-2">
+                <span class="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <h3 id="visualStageTitle" class="text-sm font-bold text-white tracking-wide">Shared Critical Section & Register Interleaving</h3>
+              </div>
+              <div class="flex items-center gap-3 text-xs font-mono">
+                <span class="text-slate-400">Tick: <strong id="clockTick" class="text-indigo-400">0</strong></span>
+                <span id="csIndicator" class="px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-400 border border-slate-700">CS: Empty</span>
+              </div>
+            </div>
+
+            <!-- Dynamic Interactive Simulation Canvas Area -->
+            <div id="simCanvasArea" class="flex-1 flex flex-col items-center justify-center p-2 relative">
+              <!-- Rendered dynamically by JS depending on scenario -->
+            </div>
+
+            <!-- State Legend -->
+            <div class="mt-4 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2 font-medium">
+              <div class="flex items-center gap-3">
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-500"></span> Ready</span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> Running (In CS)</span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Waiting / Blocked</span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Deadlocked</span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span> Done</span>
+              </div>
+              <div id="extraMetricTag" class="text-indigo-300 font-mono">Counter: 0</div>
+            </div>
+          </div>
+
+          <!-- Execution Timeline (Gantt Chart tracking thread states over time) -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-indigo-400"></i> Execution Timeline (Thread Interleaving Traces)
+              </h3>
+              <span class="text-[10px] text-slate-500 font-mono">Horizontal Slice = Time Slot</span>
+            </div>
+            
+            <div id="timelineContainer" class="space-y-2 overflow-x-auto p-2 bg-slate-950 rounded-xl border border-slate-800/80">
+              <!-- Timeline rows for T1, T2, etc generated here -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right 4 Cols: Thread States, Resources, & Inspection -->
+        <div class="lg:col-span-4 space-y-6">
+          
+          <!-- Thread Cards & Status -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+            <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="cpu" class="w-3.5 h-3.5 text-indigo-400"></i> Active Process Threads
+              </h3>
+              <span id="activeThreadCount" class="text-xs font-mono text-indigo-400">2 Threads</span>
+            </div>
+            <div id="threadCardsList" class="space-y-2.5">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Resources & Locks State -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+            <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="key-round" class="w-3.5 h-3.5 text-cyan-400"></i> Shared Resources & Locks
+              </h3>
+              <span class="text-[10px] font-mono text-slate-500">Atomic Primitive</span>
+            </div>
+            <div id="resourceCardsList" class="space-y-2.5">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Live Event Log -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col h-[320px]">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-2">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="terminal" class="w-3.5 h-3.5 text-emerald-400"></i> Live Event Log
+              </h3>
+              <div class="flex items-center gap-2">
+                <button onclick="exportEventLog()" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-1" title="Export event log as JSON/TXT">
+                  <i data-lucide="download" class="w-3 h-3"></i> Export
+                </button>
+                <button onclick="clearEventLog()" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 hover:text-white" title="Clear logs">
+                  <i data-lucide="trash-2" class="w-3 h-3"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Log entries scroll container -->
+            <div id="eventLogContainer" class="flex-1 overflow-y-auto space-y-1.5 font-mono text-xs pr-1">
+              <!-- Logs inserted dynamically -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ==================== TAB 2: BANKER'S ALGORITHM SOLVER ==================== -->
+    <section id="tab-banker" class="space-y-6 hidden">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-6">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">Deadlock Avoidance</span>
+              <h2 class="text-lg font-bold text-white">Banker's Algorithm & Safe-State Calculator</h2>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">
+              Implements Habermann's 1969 safety algorithm for multiple resource instances. Determines if current allocation leads to a Safe Sequence where <code>Need &le; Work</code>.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="loadBankerPreset('standardSafe')" class="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-all border border-slate-700">
+              Load Preset: Safe (Silberschatz)
+            </button>
+            <button onclick="loadBankerPreset('unsafeDeadlock')" class="text-xs px-3 py-1.5 bg-rose-950/80 hover:bg-rose-900 text-rose-200 rounded-lg transition-all border border-rose-800">
+              Load Preset: Unsafe
+            </button>
+            <button onclick="runBankersAlgorithm()" class="text-xs font-semibold px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center gap-1.5 shadow-md">
+              <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Evaluate Safety
+            </button>
+          </div>
+        </div>
+
+        <!-- Matrix Input Grids: Allocation, Max, Available -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- Allocation Matrix -->
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-400"></i> Allocation Matrix
+              </span>
+              <span class="text-[10px] text-slate-500">Currently Held</span>
+            </div>
+            <div class="text-[11px] grid grid-cols-4 gap-2 text-center text-slate-400 font-mono font-bold pb-1">
+              <div>Proc</div><div>R_A</div><div>R_B</div><div>R_C</div>
+            </div>
+            <div id="bankerAllocInputs" class="space-y-1.5">
+              <!-- Inputs inserted by JS -->
+            </div>
+          </div>
+
+          <!-- Max Matrix -->
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-purple-400"></i> Max Demand Matrix
+              </span>
+              <span class="text-[10px] text-slate-500">Declared Limit</span>
+            </div>
+            <div class="text-[11px] grid grid-cols-4 gap-2 text-center text-slate-400 font-mono font-bold pb-1">
+              <div>Proc</div><div>R_A</div><div>R_B</div><div>R_C</div>
+            </div>
+            <div id="bankerMaxInputs" class="space-y-1.5">
+              <!-- Inputs inserted by JS -->
+            </div>
+          </div>
+
+          <!-- Need Matrix (Calculated: Max - Alloc) & Available -->
+          <div class="space-y-4">
+            <!-- Available Vector -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <i data-lucide="box" class="w-3.5 h-3.5 text-emerald-400"></i> Available Vector
+                </span>
+                <span class="text-[10px] text-slate-500">Free Instances</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="text-[10px] text-slate-400 block mb-1">R_A</label>
+                  <input type="number" id="avail_A" value="3" min="0" max="20" class="w-full bg-slate-900 border border-slate-700 text-center rounded py-1 font-mono text-sm text-emerald-300">
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-400 block mb-1">R_B</label>
+                  <input type="number" id="avail_B" value="3" min="0" max="20" class="w-full bg-slate-900 border border-slate-700 text-center rounded py-1 font-mono text-sm text-emerald-300">
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-400 block mb-1">R_C</label>
+                  <input type="number" id="avail_C" value="2" min="0" max="20" class="w-full bg-slate-900 border border-slate-700 text-center rounded py-1 font-mono text-sm text-emerald-300">
+                </div>
+              </div>
+            </div>
+
+            <!-- Need Matrix Display -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <i data-lucide="help-circle" class="w-3.5 h-3.5 text-amber-400"></i> Need Matrix (Max - Alloc)
+                </span>
+                <span class="text-[10px] text-slate-500">Remaining</span>
+              </div>
+              <div id="bankerNeedDisplay" class="space-y-1 text-xs font-mono text-slate-300">
+                <!-- Computed live -->
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Safe State Verification Output & Step Trace -->
+        <div id="bankerResultBox" class="mt-6 p-4 rounded-xl border border-slate-800 bg-slate-950">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="list-ordered" class="w-4 h-4 text-indigo-400"></i> Step-by-Step Execution Verification
+            </h3>
+            <span id="safetyBadge" class="px-3 py-0.5 rounded-full text-xs font-bold bg-slate-800 text-slate-300">Awaiting Run</span>
+          </div>
+
+          <div id="bankerStepLogs" class="space-y-1.5 font-mono text-xs text-slate-300 max-h-48 overflow-y-auto pr-2">
+            Click "Evaluate Safety" to calculate the safe sequence and check if system state guarantees deadlock avoidance.
+          </div>
+
+          <div id="safeSequenceBar" class="mt-4 pt-3 border-t border-slate-800 hidden">
+            <span class="text-xs text-slate-400 font-semibold block mb-2">Resolved Safe Sequence:</span>
+            <div id="safeSeqChips" class="flex items-center gap-2 flex-wrap">
+              <!-- Safe badges rendered here -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ==================== TAB 3: RESOURCE ALLOCATION GRAPH (RAG) ==================== -->
+    <section id="tab-rag" class="space-y-6 hidden">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-950 text-purple-300 border border-purple-800">Holt's Graph Model (1972)</span>
+              <h2 class="text-lg font-bold text-white">Resource Allocation Graph (RAG) & Cycle Detector</h2>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">
+              Processes are circles, Resources are rounded squares. Edges from <strong>R &rarr; P</strong> indicate <span class="text-emerald-400 font-mono">Assignment (Holding)</span>; edges from <strong>P &rarr; R</strong> indicate <span class="text-amber-400 font-mono">Request (Waiting)</span>. A directed cycle in single-instance resources implies deadlock.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="loadRAGPreset('cycle')" class="text-xs px-3 py-1.5 bg-rose-950 hover:bg-rose-900 text-rose-200 border border-rose-800 rounded-lg">
+              Preset: Circular Wait (Deadlock)
+            </button>
+            <button onclick="loadRAGPreset('safe')" class="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg">
+              Preset: Acyclic (Safe)
+            </button>
+            <button onclick="runRAGCycleDetection()" class="text-xs font-semibold px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg flex items-center gap-1.5">
+              <i data-lucide="scan" class="w-3.5 h-3.5"></i> Detect Cycles (DFS)
+            </button>
+          </div>
+        </div>
+
+        <!-- RAG Canvas and Edge Editor Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Graph SVG Visualizer -->
+          <div class="lg:col-span-8 bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center min-h-[420px] relative">
+            <svg id="ragSvg" class="w-full h-[400px]" viewBox="0 0 600 380">
+              <defs>
+                <!-- Marker for Assignment Edge (Resource -> Process) -->
+                <marker id="arrow-assign" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+                </marker>
+                <!-- Marker for Request Edge (Process -> Resource) -->
+                <marker id="arrow-request" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#f59e0b" />
+                </marker>
+                <!-- Marker for Deadlocked Cycle Edge -->
+                <marker id="arrow-cycle" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#f43f5e" />
+                </marker>
+              </defs>
+              <!-- Links & Nodes rendered here -->
+              <g id="ragEdgesLayer"></g>
+              <g id="ragNodesLayer"></g>
+            </svg>
+
+            <!-- Cycle Detection Floating Banner -->
+            <div id="ragStatusBanner" class="absolute bottom-4 left-4 right-4 bg-slate-900/95 border border-slate-800 p-2.5 rounded-lg flex items-center justify-between text-xs backdrop-blur-md">
+              <span id="ragStatusText" class="font-medium text-slate-300">Click "Detect Cycles (DFS)" to analyze graph topology.</span>
+              <span id="ragCycleBadge" class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400">Idle</span>
+            </div>
+          </div>
+
+          <!-- Edge Toggle & Node Control Panel -->
+          <div class="lg:col-span-4 space-y-4">
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="git-fork" class="w-3.5 h-3.5 text-indigo-400"></i> Interactive Edge Toggles
+              </h3>
+              <p class="text-[11px] text-slate-400">Toggle graph relationships to induce or resolve circular waits:</p>
+
+              <div id="ragEdgeControls" class="space-y-2 text-xs">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+
+            <!-- Holt's Theorem Note Box -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs space-y-2 text-slate-400">
+              <div class="text-indigo-400 font-bold flex items-center gap-1.5">
+                <i data-lucide="info" class="w-3.5 h-3.5"></i> Coffman's Circular Wait
+              </div>
+              <p>
+                In a resource allocation graph with <strong>single unit per resource type</strong>, a cycle is both a <em>necessary and sufficient</em> condition for deadlock.
+              </p>
+              <p class="text-slate-500 text-[11px]">
+                If resources have multiple units, a cycle is necessary but not sufficient.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ==================== TAB 4: OS VIVA & LAB PREPARATION ==================== -->
+    <section id="tab-viva" class="space-y-6 hidden">
+      
+      <!-- Quick Reference Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- Card 1: Critical Section Conditions -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg hover:border-indigo-500/50 transition-all">
+          <div class="flex items-center gap-2 text-indigo-400 mb-2">
+            <i data-lucide="shield" class="w-4 h-4"></i>
+            <h4 class="text-xs font-bold uppercase tracking-wider">Critical Section Criteria</h4>
+          </div>
+          <ul class="text-xs space-y-1.5 text-slate-300">
+            <li><strong>1. Mutual Exclusion:</strong> Only 1 thread in CS at any time.</li>
+            <li><strong>2. Progress:</strong> Selection cannot be postponed indefinitely if CS is free.</li>
+            <li><strong>3. Bounded Waiting:</strong> Bound on turns granted to other threads before request fulfilled.</li>
+          </ul>
+        </div>
+
+        <!-- Card 2: Coffman's 4 Conditions -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg hover:border-rose-500/50 transition-all">
+          <div class="flex items-center gap-2 text-rose-400 mb-2">
+            <i data-lucide="lock" class="w-4 h-4"></i>
+            <h4 class="text-xs font-bold uppercase tracking-wider">Coffman's 4 Conditions</h4>
+          </div>
+          <ul class="text-xs space-y-1 text-slate-300">
+            <li><strong>1. Mutual Exclusion:</strong> Non-shareable resource.</li>
+            <li><strong>2. Hold and Wait:</strong> Holding one, asking for another.</li>
+            <li><strong>3. No Preemption:</strong> Resources released voluntarily.</li>
+            <li><strong>4. Circular Wait:</strong> {P0&rarr;P1&rarr;...&rarr;Pn&rarr;P0}.</li>
+          </ul>
+        </div>
+
+        <!-- Card 3: Mutex vs Semaphore -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg hover:border-emerald-500/50 transition-all">
+          <div class="flex items-center gap-2 text-emerald-400 mb-2">
+            <i data-lucide="git-commit" class="w-4 h-4"></i>
+            <h4 class="text-xs font-bold uppercase tracking-wider">Mutex vs Semaphore</h4>
+          </div>
+          <ul class="text-xs space-y-1.5 text-slate-300">
+            <li><strong>Mutex:</strong> Locking mechanism owned by thread. Only owner can unlock.</li>
+            <li><strong>Binary Semaphore:</strong> Integer flag (0/1); signaling between threads.</li>
+            <li><strong>Counting:</strong> Permits up to N concurrent holders.</li>
+          </ul>
+        </div>
+
+        <!-- Card 4: Deadlock Handling -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg hover:border-cyan-500/50 transition-all">
+          <div class="flex items-center gap-2 text-cyan-400 mb-2">
+            <i data-lucide="activity" class="w-4 h-4"></i>
+            <h4 class="text-xs font-bold uppercase tracking-wider">Deadlock Strategies</h4>
+          </div>
+          <ul class="text-xs space-y-1.5 text-slate-300">
+            <li><strong>Prevention:</strong> Invalidate at least one Coffman condition.</li>
+            <li><strong>Avoidance:</strong> Banker's algorithm (stay in Safe State).</li>
+            <li><strong>Detection & Recovery:</strong> RAG cycle check, kill/preempt.</li>
+            <li><strong>Ostrich:</strong> Ignore (used in general OS like Linux).</li>
+          </ul>
+        </div>
+
+      </div>
+
+      <!-- High-Frequency Lab Viva Questions (Collapsible Accordions) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <h3 class="text-base font-bold text-white mb-4 flex items-center gap-2">
+          <i data-lucide="help-circle" class="w-4 h-4 text-indigo-400"></i> Top Operating Systems Viva Questions & Answers
+        </h3>
+        
+        <div class="space-y-3">
+          
+          <details class="bg-slate-950 p-4 rounded-xl border border-slate-800 group">
+            <summary class="font-semibold text-sm text-slate-200 cursor-pointer flex justify-between items-center">
+              <span>Q1. What is a race condition and how did ThreadLock simulate a lost update?</span>
+              <span class="text-slate-500 group-open:rotate-180 transition-transform">&darr;</span>
+            </summary>
+            <p class="mt-2 text-xs text-slate-400 leading-relaxed">
+              A race condition occurs when concurrent threads execute overlapping reads and writes to shared memory without synchronization, causing non-deterministic outcomes. In ThreadLock's simulation, T1 and T2 both read counter value 5 into local registers. Before T1 can write back 6, T2 computes 6 and writes. T1 then overwrites with 6, completely losing one increment (final value 6 instead of 7).
+            </p>
+          </details>
+
+          <details class="bg-slate-950 p-4 rounded-xl border border-slate-800 group">
+            <summary class="font-semibold text-sm text-slate-200 cursor-pointer flex justify-between items-center">
+              <span>Q2. Is an "Unsafe State" in Banker's algorithm identical to a "Deadlock"?</span>
+              <span class="text-slate-500 group-open:rotate-180 transition-transform">&darr;</span>
+            </summary>
+            <p class="mt-2 text-xs text-slate-400 leading-relaxed">
+              <strong>No.</strong> An unsafe state does NOT guarantee a deadlock has occurred; it simply means the operating system can no longer prevent processes from deadlocking if every process suddenly requests its declared maximum resource demand. A safe state guarantees a sequence exists where every process can terminate.
+            </p>
+          </details>
+
+          <details class="bg-slate-950 p-4 rounded-xl border border-slate-800 group">
+            <summary class="font-semibold text-sm text-slate-200 cursor-pointer flex justify-between items-center">
+              <span>Q3. How do you prevent circular wait in the Dining Philosophers problem?</span>
+              <span class="text-slate-500 group-open:rotate-180 transition-transform">&darr;</span>
+            </summary>
+            <p class="mt-2 text-xs text-slate-400 leading-relaxed">
+              Circular wait can be broken by: 
+              1) <strong>Asymmetric solution:</strong> Odd philosophers pick left fork first, even philosophers pick right fork first.
+              2) <strong>Resource ordering:</strong> Philosophers must pick lower-numbered fork before higher-numbered fork (Dijkstra's hierarchy).
+              3) <strong>Arbitrator / Monitor:</strong> Allow at most 4 philosophers to sit at the 5-chair table simultaneously.
+            </p>
+          </details>
+
+          <details class="bg-slate-950 p-4 rounded-xl border border-slate-800 group">
+            <summary class="font-semibold text-sm text-slate-200 cursor-pointer flex justify-between items-center">
+              <span>Q4. What is the role of <code>empty</code>, <code>full</code>, and <code>mutex</code> in Bounded Buffer?</span>
+              <span class="text-slate-500 group-open:rotate-180 transition-transform">&darr;</span>
+            </summary>
+            <p class="mt-2 text-xs text-slate-400 leading-relaxed">
+              - <code>empty</code>: Counting semaphore initialized to buffer size N (tracks vacant slots; producer decrements).<br>
+              - <code>full</code>: Counting semaphore initialized to 0 (tracks filled items; consumer decrements).<br>
+              - <code>mutex</code>: Binary semaphore (initialized to 1) guaranteeing mutual exclusion when appending or removing from the buffer queue.
+            </p>
+          </details>
+
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-slate-900 border-t border-slate-800 py-4 mt-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+      <div class="flex items-center gap-2">
+        <span class="font-bold text-slate-300">ThreadLock</span>
+        <span>• Operating Systems Course Project • VIT</span>
+      </div>
+      <div>
+        References: Silberschatz 10th Ed. • Dijkstra (1965) • Habermann (1969) • Coffman et al. (1971)
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== JAVASCRIPT SIMULATION LOGIC ==================== -->
+  <script>
+    /* ==========================================================
+       GLOBAL STATE & CONTROLS
+       ========================================================== */
+    let currentScenario = 'race';
+    let isRunning = false;
+    let simTimer = null;
+    let simSpeed = 700;
+    let clockTick = 0;
+    let eventLogs = [];
+
+    // Scenario specific modes
+    let scenarioMode = {
+      race: 'unsync',       // 'unsync' | 'sync'
+      bounded: 'normal',    // 'normal'
+      dining: 'deadlock',   // 'deadlock' | 'safe'
+      deadlock: 'cycle'     // 'cycle' | 'broken'
+    };
+
+    /* ==========================================================
+       SCENARIO 1: RACE CONDITION DATA & STATE
+       ========================================================== */
+    let raceState = {
+      counter: 5,
+      t1_reg: null,
+      t2_reg: null,
+      lockOwner: null,
+      currentStepIndex: 0,
+      unsyncPlan: [
+        { t: 'T1', action: 'READ', val: 5, desc: 'T1 reads counter (5) into Register R1' },
+        { t: 'T2', action: 'READ', val: 5, desc: 'Context Switch! T2 reads counter (5) into Register R2' },
+        { t: 'T1', action: 'COMPUTE', val: 6, desc: 'T1 computes R1 = 5 + 1 = 6' },
+        { t: 'T2', action: 'COMPUTE', val: 6, desc: 'T2 computes R2 = 5 + 1 = 6' },
+        { t: 'T2', action: 'WRITE', val: 6, desc: 'T2 writes back 6 to shared counter' },
+        { t: 'T1', action: 'WRITE', val: 6, desc: 'T1 writes back 6 to shared counter (LOST UPDATE: 2 increments, count is 6!)' },
+        { t: 'SYS', action: 'DONE', desc: 'Race condition complete. Lost 1 update due to interleaving.' }
+      ],
+      syncPlan: [
+        { t: 'T1', action: 'LOCK', desc: 'T1 acquires Mutex ReentrantLock' },
+        { t: 'T2', action: 'WAIT', desc: 'T2 requests Mutex -> Blocked in wait-queue' },
+        { t: 'T1', action: 'READ', val: 5, desc: 'T1 reads counter (5)' },
+        { t: 'T1', action: 'COMPUTE', val: 6, desc: 'T1 computes 5 + 1 = 6' },
+        { t: 'T1', action: 'WRITE', val: 6, desc: 'T1 writes 6 to shared counter' },
+        { t: 'T1', action: 'UNLOCK', desc: 'T1 releases Mutex; unblocks T2' },
+        { t: 'T2', action: 'LOCK', desc: 'T2 wakes up & acquires Mutex' },
+        { t: 'T2', action: 'READ', val: 6, desc: 'T2 reads updated counter (6)' },
+        { t: 'T2', action: 'COMPUTE', val: 7, desc: 'T2 computes 6 + 1 = 7' },
+        { t: 'T2', action: 'WRITE', val: 7, desc: 'T2 writes 7 to shared counter' },
+        { t: 'T2', action: 'UNLOCK', desc: 'T2 releases Mutex' },
+        { t: 'SYS', action: 'DONE', desc: 'Mutual exclusion preserved. Final count is 7.' }
+      ]
+    };
+
+    /* ==========================================================
+       SCENARIO 2: BOUNDED BUFFER (PRODUCER-CONSUMER)
+       ========================================================== */
+    const BUFFER_CAPACITY = 5;
+    let boundedState = {
+      buffer: [101, 102], // items inside
+      mutex: 1,           // 1 = free, 0 = locked
+      emptyPermits: 3,    // 5 - 2
+      fullPermits: 2,
+      prodState: 'READY', // 'READY', 'RUNNING', 'WAITING'
+      consState: 'READY',
+      nextItem: 103,
+      stepSequence: [
+        { actor: 'PROD', action: 'PRODUCE', desc: 'Producer prepares item 103' },
+        { actor: 'PROD', action: 'INSERT', desc: 'Producer acquires empty semaphore & mutex, inserts 103' },
+        { actor: 'CONS', action: 'CONSUME', desc: 'Consumer acquires full semaphore & mutex, consumes 101' },
+        { actor: 'PROD', action: 'PRODUCE', desc: 'Producer prepares item 104' },
+        { actor: 'PROD', action: 'INSERT', desc: 'Producer inserts 104 into buffer' },
+        { actor: 'PROD', action: 'INSERT', desc: 'Producer fills slot with 105' },
+        { actor: 'PROD', action: 'INSERT', desc: 'Producer fills slot with 106 (Buffer Full!)' },
+        { actor: 'PROD', action: 'BLOCK_FULL', desc: 'Producer attempts insert -> BLOCKED (empty permits = 0)' },
+        { actor: 'CONS', action: 'CONSUME', desc: 'Consumer consumes 102, signals empty permit' },
+        { actor: 'PROD', action: 'WAKE', desc: 'Producer unblocked! Inserts 107' }
+      ],
+      stepIdx: 0
+    };
+
+    /* ==========================================================
+       SCENARIO 3: DINING PHILOSOPHERS DATA
+       ========================================================== */
+    let diningState = {
+      // 5 Philosophers: 0..4
+      // States: 'THINKING', 'HUNGRY', 'HOLDING_ONE', 'EATING'
+      phils: ['THINKING', 'THINKING', 'THINKING', 'THINKING', 'THINKING'],
+      // Forks: -1 = on table, 0..4 = held by philosopher i
+      forks: [-1, -1, -1, -1, -1],
+      isDeadlocked: false,
+      step: 0
+    };
+
+    /* ==========================================================
+       SCENARIO 4: DEADLOCK CYCLE SCENARIO
+       ========================================================== */
+    let deadlockScenarioState = {
+      step: 0,
+      t1: 'READY',
+      t2: 'READY',
+      r1: 'FREE',
+      r2: 'FREE',
+      isDeadlocked: false
+    };
+
+    /* ==========================================================
+       TIMELINE DATA
+       ========================================================== */
+    let timelineHistory = {
+      T1: [],
+      T2: [],
+      T3: []
+    };
+
+    /* ==========================================================
+       INITIALIZATION
+       ========================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initBankerMatrixInputs();
+      initRAGGraph();
+      loadScenario('race');
+    });
+
+    /* ==========================================================
+       TAB SWITCHING
+       ========================================================== */
+    function switchTab(tabId) {
+      ['simulator', 'banker', 'rag', 'viva'].forEach(id => {
+        const sec = document.getElementById(`tab-${id}`);
+        const btn = document.getElementById(`tabBtn-${id}`);
+        if (id === tabId) {
+          sec.classList.remove('hidden');
+          btn.classList.remove('text-slate-400', 'hover:bg-slate-800/60');
+          btn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+        } else {
+          sec.classList.add('hidden');
+          btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+          btn.classList.add('text-slate-400', 'hover:bg-slate-800/60');
+        }
+      });
+      lucide.createIcons();
+    }
+
+    /* ==========================================================
+       SCENARIO LOADER & CONTROLS
+       ========================================================== */
+    function loadScenario(type) {
+      pauseSim();
+      currentScenario = type;
+      clockTick = 0;
+      eventLogs = [];
+      timelineHistory = { T1: [], T2: [], T3: [] };
+
+      // Update button styling
+      document.querySelectorAll('.scenario-btn').forEach(b => {
+        b.className = 'scenario-btn px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 hover:border-slate-600';
+      });
+      const activeBtn = document.getElementById(`scen-${type}`);
+      if (activeBtn) {
+        activeBtn.className = 'scenario-btn px-3 py-1.5 text-xs font-medium rounded-lg border transition-all bg-indigo-950 border-indigo-500 text-indigo-200 shadow-sm';
+      }
+
+      // Configure Mode Switcher UI for the scenario
+      const modeLeft = document.getElementById('modeLabelLeft');
+      const modeRight = document.getElementById('modeLabelRight');
+      const toggleKnob = document.getElementById('modeToggleKnob');
+      const toggleBtn = document.getElementById('modeSwitchBtn');
+      const banner = document.getElementById('scenarioDescription');
+
+      if (type === 'race') {
+        modeLeft.textContent = 'Unsynchronized';
+        modeRight.textContent = 'Synchronized (Mutex)';
+        banner.innerHTML = `<strong>Race Condition Demonstration:</strong> Shows how concurrent threads interleave on shared variable <code>counter</code>. Unsynchronized causes lost updates (read 5 &rarr; write 6 twice). Synchronized with <code>ReentrantLock</code> forces mutual exclusion.`;
+        updateToggleVisual(scenarioMode.race === 'sync');
+        resetRaceState();
+      } else if (type === 'bounded') {
+        modeLeft.textContent = 'Standard Semaphore';
+        modeRight.textContent = 'Capacity-5 Buffer';
+        banner.innerHTML = `<strong>Producer-Consumer (Bounded Buffer):</strong> Coordinated by two counting semaphores (<code>empty=5</code>, <code>full=0</code>) and a binary <code>mutex</code>. Producer blocks on full, consumer blocks on empty.`;
+        updateToggleVisual(true);
+        resetBoundedState();
+      } else if (type === 'dining') {
+        modeLeft.textContent = 'Deadlock-Prone (All Left)';
+        modeRight.textContent = 'Deadlock-Free (Asymmetric)';
+        banner.innerHTML = `<strong>Dining Philosophers (5 Forks):</strong> In Deadlock-prone mode, all 5 philosophers pick their left fork simultaneously, causing a circular wait. In Deadlock-free mode, odd/even philosophers pick in opposite order.`;
+        updateToggleVisual(scenarioMode.dining === 'safe');
+        resetDiningState();
+      } else if (type === 'deadlock') {
+        modeLeft.textContent = 'Circular Deadlock';
+        modeRight.textContent = 'Ordered Hierarchy';
+        banner.innerHTML = `<strong>Two-Resource Deadlock:</strong> Thread 1 holds Resource A and requests B; Thread 2 holds B and requests A. Cycle detection identifies circular wait {T1 &rarr; R2 &rarr; T2 &rarr; R1 &rarr; T1}.`;
+        updateToggleVisual(scenarioMode.deadlock === 'broken');
+        resetDeadlockState();
+      }
+
+      logEvent('SYS', `Loaded scenario: ${type.toUpperCase()}`);
+      renderSimulationCanvas();
+      renderThreadCards();
+      renderResourceCards();
+      renderTimeline();
+    }
+
+    function toggleScenarioMode() {
+      if (currentScenario === 'race') {
+        scenarioMode.race = scenarioMode.race === 'unsync' ? 'sync' : 'unsync';
+        updateToggleVisual(scenarioMode.race === 'sync');
+        resetRaceState();
+      } else if (currentScenario === 'dining') {
+        scenarioMode.dining = scenarioMode.dining === 'deadlock' ? 'safe' : 'deadlock';
+        updateToggleVisual(scenarioMode.dining === 'safe');
+        resetDiningState();
+      } else if (currentScenario === 'deadlock') {
+        scenarioMode.deadlock = scenarioMode.deadlock === 'cycle' ? 'broken' : 'cycle';
+        updateToggleVisual(scenarioMode.deadlock === 'broken');
+        resetDeadlockState();
+      }
+      logEvent('MODE', `Switched mode to: ${JSON.stringify(scenarioMode[currentScenario])}`);
+      renderSimulationCanvas();
+      renderThreadCards();
+      renderResourceCards();
+    }
+
+    function updateToggleVisual(isRightActive) {
+      const knob = document.getElementById('modeToggleKnob');
+      const leftLabel = document.getElementById('modeLabelLeft');
+      const rightLabel = document.getElementById('modeLabelRight');
+
+      if (isRightActive) {
+        knob.classList.add('translate-x-5', 'bg-indigo-400');
+        knob.classList.remove('bg-amber-400');
+        rightLabel.classList.add('text-indigo-400');
+        rightLabel.classList.remove('text-slate-500');
+        leftLabel.classList.add('text-slate-500');
+        leftLabel.classList.remove('text-amber-400');
+      } else {
+        knob.classList.remove('translate-x-5', 'bg-indigo-400');
+        knob.classList.add('bg-amber-400');
+        leftLabel.classList.add('text-amber-400');
+        leftLabel.classList.remove('text-slate-500');
+        rightLabel.classList.add('text-slate-500');
+        rightLabel.classList.remove('text-indigo-400');
+      }
+    }
+
+    /* ==========================================================
+       PLAYBACK ENGINE (PLAY, PAUSE, STEP, RESET, SPEED)
+       ========================================================= */
+    function togglePlay() {
+      if (isRunning) {
+        pauseSim();
+      } else {
+        startSim();
+      }
+    }
+
+    function startSim() {
+      isRunning = true;
+      document.getElementById('playIcon').setAttribute('data-lucide', 'pause');
+      document.getElementById('playText').textContent = 'Pause';
+      document.getElementById('playPauseBtn').classList.remove('bg-indigo-600', 'hover:bg-indigo-500');
+      document.getElementById('playPauseBtn').classList.add('bg-amber-600', 'hover:bg-amber-500');
+      lucide.createIcons();
+
+      simTimer = setInterval(() => {
+        stepSimulation();
+      }, simSpeed);
+    }
+
+    function pauseSim() {
+      isRunning = false;
+      if (simTimer) clearInterval(simTimer);
+      simTimer = null;
+      document.getElementById('playIcon').setAttribute('data-lucide', 'play');
+      document.getElementById('playText').textContent = 'Run';
+      document.getElementById('playPauseBtn').classList.remove('bg-amber-600', 'hover:bg-amber-500');
+      document.getElementById('playPauseBtn').classList.add('bg-indigo-600', 'hover:bg-indigo-500');
+      lucide.createIcons();
+    }
+
+    function resetSimulation() {
+      pauseSim();
+      clockTick = 0;
+      eventLogs = [];
+      timelineHistory = { T1: [], T2: [], T3: [] };
+      document.getElementById('clockTick').textContent = '0';
+
+      if (currentScenario === 'race') resetRaceState();
+      if (currentScenario === 'bounded') resetBoundedState();
+      if (currentScenario === 'dining') resetDiningState();
+      if (currentScenario === 'deadlock') resetDeadlockState();
+
+      logEvent('SYS', 'Simulation reset to t=0 initial state.');
+      renderSimulationCanvas();
+      renderThreadCards();
+      renderResourceCards();
+      renderTimeline();
+    }
+
+    function setSimSpeed(ms, btn) {
+      simSpeed = ms;
+      document.querySelectorAll('.speed-btn').forEach(b => {
+        b.className = 'speed-btn px-2 py-0.5 rounded text-slate-400 hover:text-white';
+      });
+      btn.className = 'speed-btn px-2 py-0.5 rounded bg-indigo-900 text-indigo-300 font-bold';
+      if (isRunning) {
+        pauseSim();
+        startSim();
+      }
+    }
+
+    function stepSimulation() {
+      clockTick++;
+      document.getElementById('clockTick').textContent = clockTick;
+
+      if (currentScenario === 'race') executeRaceStep();
+      else if (currentScenario === 'bounded') executeBoundedStep();
+      else if (currentScenario === 'dining') executeDiningStep();
+      else if (currentScenario === 'deadlock') executeDeadlockStep();
+
+      renderSimulationCanvas();
+      renderThreadCards();
+      renderResourceCards();
+      renderTimeline();
+    }
+
+    /* ==========================================================
+       SCENARIO 1 LOGIC: RACE CONDITION
+       ========================================================== */
+    function resetRaceState() {
+      raceState.counter = 5;
+      raceState.t1_reg = null;
+      raceState.t2_reg = null;
+      raceState.lockOwner = null;
+      raceState.currentStepIndex = 0;
+      document.getElementById('csIndicator').textContent = 'CS: Empty';
+      document.getElementById('csIndicator').className = 'px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-400 border border-slate-700';
+      document.getElementById('extraMetricTag').textContent = 'Counter: 5';
+    }
+
+    function executeRaceStep() {
+      const plan = scenarioMode.race === 'unsync' ? raceState.unsyncPlan : raceState.syncPlan;
+
+      if (raceState.currentStepIndex >= plan.length) {
+        logEvent('SYS', 'Simulation run completed.');
+        pauseSim();
+        return;
+      }
+
+      const step = plan[raceState.currentStepIndex];
+      raceState.currentStepIndex++;
+
+      const csBadge = document.getElementById('csIndicator');
+
+      if (step.action === 'LOCK') {
+        raceState.lockOwner = step.t;
+        logEvent('LOCK', `${step.t} acquired Mutex (Lock granted).`);
+        csBadge.textContent = `CS: Held by ${step.t}`;
+        csBadge.className = 'px-2 py-0.5 rounded text-[11px] bg-emerald-950 text-emerald-300 border border-emerald-700 font-bold';
+      } else if (step.action === 'WAIT') {
+        logEvent('WAIT', `${step.t} tried to acquire Mutex -> BLOCKED.`);
+      } else if (step.action === 'READ') {
+        if (step.t === 'T1') raceState.t1_reg = step.val;
+        if (step.t === 'T2') raceState.t2_reg = step.val;
+        logEvent('READ', `${step.t} read counter (${step.val}) into Register.`);
+      } else if (step.action === 'COMPUTE') {
+        if (step.t === 'T1') raceState.t1_reg = step.val;
+        if (step.t === 'T2') raceState.t2_reg = step.val;
+        logEvent('CALC', `${step.t} computed local register = ${step.val}.`);
+      } else if (step.action === 'WRITE') {
+        raceState.counter = step.val;
+        document.getElementById('extraMetricTag').textContent = `Counter: ${raceState.counter}`;
+        logEvent('WRITE', `${step.t} wrote ${step.val} to shared counter!`);
+      } else if (step.action === 'UNLOCK') {
+        raceState.lockOwner = null;
+        logEvent('UNLOCK', `${step.t} released Mutex.`);
+        csBadge.textContent = 'CS: Empty';
+        csBadge.className = 'px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-400 border border-slate-700';
+      } else if (step.action === 'DONE') {
+        logEvent('RESULT', step.desc);
+      }
+
+      // Record timeline traces
+      let t1_state = 'READY';
+      let t2_state = 'READY';
+
+      if (scenarioMode.race === 'unsync') {
+        if (step.t === 'T1') t1_state = 'RUNNING';
+        if (step.t === 'T2') t2_state = 'RUNNING';
+      } else {
+        if (raceState.lockOwner === 'T1') {
+          t1_state = 'RUNNING';
+          t2_state = 'WAITING';
+        } else if (raceState.lockOwner === 'T2') {
+          t2_state = 'RUNNING';
+          t1_state = 'READY';
+        }
+      }
+
+      timelineHistory.T1.push(t1_state);
+      timelineHistory.T2.push(t2_state);
+    }
+
+    /* ==========================================================
+       SCENARIO 2 LOGIC: BOUNDED BUFFER
+       ========================================================== */
+    function resetBoundedState() {
+      boundedState.buffer = [101, 102];
+      boundedState.mutex = 1;
+      boundedState.emptyPermits = 3;
+      boundedState.fullPermits = 2;
+      boundedState.prodState = 'READY';
+      boundedState.consState = 'READY';
+      boundedState.nextItem = 103;
+      boundedState.stepIdx = 0;
+      document.getElementById('extraMetricTag').textContent = `Buffer: 2/5`;
+      document.getElementById('csIndicator').textContent = 'Mutex: Free';
+    }
+
+    function executeBoundedStep() {
+      if (boundedState.stepIdx >= boundedState.stepSequence.length) {
+        logEvent('SYS', 'Bounded Buffer cycle completed. Resetting sequence.');
+        boundedState.stepIdx = 0;
+      }
+
+      const st = boundedState.stepSequence[boundedState.stepIdx];
+      boundedState.stepIdx++;
+
+      if (st.action === 'PRODUCE') {
+        boundedState.prodState = 'RUNNING';
+        boundedState.consState = 'READY';
+        logEvent('SEMAPHORE', st.desc);
+      } else if (st.action === 'INSERT') {
+        if (boundedState.buffer.length < BUFFER_CAPACITY) {
+          boundedState.buffer.push(boundedState.nextItem++);
+          boundedState.emptyPermits = BUFFER_CAPACITY - boundedState.buffer.length;
+          boundedState.fullPermits = boundedState.buffer.length;
+          boundedState.prodState = 'RUNNING';
+          logEvent('PROD', `Inserted item. Buffer count: ${boundedState.buffer.length}/5`);
+        }
+      } else if (st.action === 'CONSUME') {
+        if (boundedState.buffer.length > 0) {
+          const removed = boundedState.buffer.shift();
+          boundedState.emptyPermits = BUFFER_CAPACITY - boundedState.buffer.length;
+          boundedState.fullPermits = boundedState.buffer.length;
+          boundedState.consState = 'RUNNING';
+          boundedState.prodState = 'READY';
+          logEvent('CONS', `Consumed item ${removed}. Buffer count: ${boundedState.buffer.length}/5`);
+        }
+      } else if (st.action === 'BLOCK_FULL') {
+        boundedState.prodState = 'WAITING';
+        logEvent('WAIT', 'Producer blocked: buffer is FULL (empty permits = 0).');
+      } else if (st.action === 'WAKE') {
+        boundedState.prodState = 'RUNNING';
+        boundedState.buffer.push(boundedState.nextItem++);
+        logEvent('WAKE', 'Producer unblocked by consumer signal! Item inserted.');
+      }
+
+      document.getElementById('extraMetricTag').textContent = `Buffer: ${boundedState.buffer.length}/5`;
+
+      timelineHistory.T1.push(boundedState.prodState);
+      timelineHistory.T2.push(boundedState.consState);
+    }
+
+    /* ==========================================================
+       SCENARIO 3 LOGIC: DINING PHILOSOPHERS
+       ========================================================== */
+    function resetDiningState() {
+      diningState.phils = ['THINKING', 'THINKING', 'THINKING', 'THINKING', 'THINKING'];
+      diningState.forks = [-1, -1, -1, -1, -1];
+      diningState.isDeadlocked = false;
+      diningState.step = 0;
+      document.getElementById('extraMetricTag').textContent = 'Deadlock: None';
+      document.getElementById('csIndicator').textContent = 'Table: Active';
+    }
+
+    function executeDiningStep() {
+      diningState.step++;
+
+      if (scenarioMode.dining === 'deadlock') {
+        // Deadlock sequence: Each philosopher i picks up left fork i
+        if (diningState.step <= 5) {
+          const i = diningState.step - 1;
+          diningState.phils[i] = 'HOLDING_ONE';
+          diningState.forks[i] = i; // fork i held by philosopher i
+          logEvent('HOLD', `P${i} picked up Left Fork F${i}. Waiting for Right Fork F${(i+1)%5}.`);
+        }
+
+        if (diningState.step >= 5) {
+          diningState.isDeadlocked = true;
+          logEvent('DEADLOCK', 'DEADLOCK DETECTED! Circular Wait: All 5 philosophers hold left fork and wait indefinitely for right fork.');
+          document.getElementById('extraMetricTag').textContent = 'DEADLOCK: Circular Wait';
+          document.getElementById('csIndicator').textContent = 'DEADLOCK!';
+          document.getElementById('csIndicator').className = 'px-2 py-0.5 rounded text-[11px] bg-rose-950 text-rose-300 border border-rose-700 font-bold animate-pulse';
+          pauseSim();
+        }
+      } else {
+        // Deadlock Free (Asymmetric solution)
+        const i = (diningState.step - 1) % 5;
+        const leftFork = i;
+        const rightFork = (i + 1) % 5;
+
+        // Reset previous eater
+        diningState.phils = ['THINKING', 'THINKING', 'THINKING', 'THINKING', 'THINKING'];
+        diningState.forks = [-1, -1, -1, -1, -1];
+
+        // Let philosopher i eat
+        diningState.phils[i] = 'EATING';
+        diningState.forks[leftFork] = i;
+        diningState.forks[rightFork] = i;
+
+        // Neighbor waits
+        const neighbor = (i + 1) % 5;
+        diningState.phils[neighbor] = 'WAITING';
+
+        logEvent('SAFE', `Asymmetric Order: P${i} acquired F${leftFork} and F${rightFork} -> EATING safely without deadlock.`);
+        document.getElementById('extraMetricTag').textContent = `P${i} is Eating`;
+      }
+
+      timelineHistory.T1.push(diningState.phils[0] === 'EATING' ? 'RUNNING' : (diningState.phils[0] === 'HOLDING_ONE' ? 'WAITING' : 'READY'));
+      timelineHistory.T2.push(diningState.phils[1] === 'EATING' ? 'RUNNING' : (diningState.phils[1] === 'HOLDING_ONE' ? 'WAITING' : 'READY'));
+    }
+
+    /* ==========================================================
+       SCENARIO 4 LOGIC: DEADLOCK CYCLE (T1, T2, R1, R2)
+       ========================================================== */
+    function resetDeadlockState() {
+      deadlockScenarioState.step = 0;
+      deadlockScenarioState.t1 = 'READY';
+      deadlockScenarioState.t2 = 'READY';
+      deadlockScenarioState.r1 = 'FREE';
+      deadlockScenarioState.r2 = 'FREE';
+      deadlockScenarioState.isDeadlocked = false;
+      document.getElementById('extraMetricTag').textContent = 'Cycle: None';
+      document.getElementById('csIndicator').textContent = 'RAG: Normal';
+    }
+
+    function executeDeadlockStep() {
+      deadlockScenarioState.step++;
+
+      if (scenarioMode.deadlock === 'cycle') {
+        if (deadlockScenarioState.step === 1) {
+          deadlockScenarioState.t1 = 'RUNNING';
+          deadlockScenarioState.r1 = 'Held by T1';
+          logEvent('ACQUIRE', 'T1 requests and acquires Resource R1.');
+        } else if (deadlockScenarioState.step === 2) {
+          deadlockScenarioState.t2 = 'RUNNING';
+          deadlockScenarioState.r2 = 'Held by T2';
+          logEvent('ACQUIRE', 'T2 requests and acquires Resource R2.');
+        } else if (deadlockScenarioState.step === 3) {
+          deadlockScenarioState.t1 = 'WAITING';
+          logEvent('REQUEST', 'T1 requests R2 (held by T2) -> T1 BLOCKED.');
+        } else if (deadlockScenarioState.step === 4) {
+          deadlockScenarioState.t2 = 'WAITING';
+          deadlockScenarioState.isDeadlocked = true;
+          logEvent('DEADLOCK', 'T2 requests R1 (held by T1) -> Circular Wait detected: {T1 -> R2 -> T2 -> R1 -> T1} DEADLOCK!');
+          document.getElementById('extraMetricTag').textContent = 'DEADLOCK: {T1, T2}';
+          document.getElementById('csIndicator').textContent = 'Deadlock Cycle!';
+          document.getElementById('csIndicator').className = 'px-2 py-0.5 rounded text-[11px] bg-rose-950 text-rose-300 border border-rose-700 font-bold';
+          pauseSim();
+        }
+      } else {
+        // Ordered Hierarchy: Always acquire R1 before R2
+        if (deadlockScenarioState.step === 1) {
+          deadlockScenarioState.t1 = 'RUNNING';
+          deadlockScenarioState.r1 = 'Held by T1';
+          logEvent('ACQUIRE', 'T1 acquires R1 (Hierarchy Order 1).');
+        } else if (deadlockScenarioState.step === 2) {
+          deadlockScenarioState.t1 = 'RUNNING';
+          deadlockScenarioState.r2 = 'Held by T1';
+          logEvent('ACQUIRE', 'T1 acquires R2 -> T1 executes safely.');
+        } else if (deadlockScenarioState.step === 3) {
+          deadlockScenarioState.r1 = 'FREE';
+          deadlockScenarioState.r2 = 'FREE';
+          deadlockScenarioState.t1 = 'DONE';
+          deadlockScenarioState.t2 = 'RUNNING';
+          logEvent('RELEASE', 'T1 completes, releases R1 & R2. T2 can now proceed without circular wait.');
+        }
+      }
+
+      timelineHistory.T1.push(deadlockScenarioState.t1);
+      timelineHistory.T2.push(deadlockScenarioState.t2);
+    }
+
+    /* ==========================================================
+       CANVAS RENDERING: DYNAMIC VISUALIZATIONS
+       ========================================================== */
+    function renderSimulationCanvas() {
+      const stage = document.getElementById('simCanvasArea');
+      const title = document.getElementById('visualStageTitle');
+
+      if (currentScenario === 'race') {
+        title.textContent = `Race Condition: ${scenarioMode.race === 'unsync' ? 'Unsynchronized Interleaving (Lost Update)' : 'Protected with Mutex ReentrantLock'}`;
+        stage.innerHTML = `
+          <div class="w-full max-w-lg flex flex-col items-center gap-6 py-4">
+            <!-- Shared Counter Memory Block -->
+            <div class="relative bg-slate-950 border-2 ${raceState.lockOwner ? 'border-emerald-500 pulse-glow' : 'border-indigo-500'} rounded-2xl p-6 text-center w-64 shadow-2xl transition-all">
+              <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-900 text-indigo-300 text-[10px] font-mono px-3 py-0.5 rounded-full border border-indigo-700 uppercase">
+                Shared RAM Variable
+              </span>
+              <div class="text-xs text-slate-400 font-mono mb-1">int counter;</div>
+              <div class="text-4xl font-extrabold text-white tracking-wider font-mono">${raceState.counter}</div>
+              <div class="mt-2 text-[11px] ${raceState.lockOwner ? 'text-emerald-400' : 'text-slate-400'} font-medium">
+                ${raceState.lockOwner ? `<i data-lucide="lock" class="inline w-3 h-3 mr-1"></i> Locked by ${raceState.lockOwner}` : '<i data-lucide="unlock" class="inline w-3 h-3 mr-1"></i> Mutex: Unlocked'}
+              </div>
+            </div>
+
+            <!-- Interleaving Threads & CPU Registers -->
+            <div class="grid grid-cols-2 gap-8 w-full">
+              <!-- Thread 1 Box -->
+              <div class="bg-slate-950/90 border ${raceState.lockOwner === 'T1' ? 'border-emerald-500 pulse-glow' : 'border-slate-800'} rounded-xl p-4 flex flex-col items-center">
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="w-2.5 h-2.5 rounded-full ${raceState.lockOwner === 'T1' ? 'bg-emerald-400' : 'bg-slate-400'}"></div>
+                  <span class="text-xs font-bold text-white">Thread T1</span>
+                </div>
+                <div class="text-[11px] text-slate-400 mb-2 font-mono">Op: counter++</div>
+                <div class="bg-slate-900 border border-slate-800 rounded p-2 text-center w-full">
+                  <div class="text-[10px] text-slate-500">Local Reg R1:</div>
+                  <div class="text-lg font-mono font-bold text-indigo-300">${raceState.t1_reg !== null ? raceState.t1_reg : '—'}</div>
+                </div>
+              </div>
+
+              <!-- Thread 2 Box -->
+              <div class="bg-slate-950/90 border ${raceState.lockOwner === 'T2' ? 'border-emerald-500 pulse-glow' : (raceState.lockOwner === 'T1' ? 'border-amber-500/50' : 'border-slate-800')} rounded-xl p-4 flex flex-col items-center">
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="w-2.5 h-2.5 rounded-full ${raceState.lockOwner === 'T2' ? 'bg-emerald-400' : (raceState.lockOwner === 'T1' ? 'bg-amber-400 animate-pulse' : 'bg-slate-400')}"></div>
+                  <span class="text-xs font-bold text-white">Thread T2</span>
+                </div>
+                <div class="text-[11px] text-slate-400 mb-2 font-mono">Op: counter++</div>
+                <div class="bg-slate-900 border border-slate-800 rounded p-2 text-center w-full">
+                  <div class="text-[10px] text-slate-500">Local Reg R2:</div>
+                  <div class="text-lg font-mono font-bold text-cyan-300">${raceState.t2_reg !== null ? raceState.t2_reg : '—'}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (currentScenario === 'bounded') {
+        title.textContent = 'Producer-Consumer: Bounded Buffer with Counting Semaphores';
+        let slotsHtml = '';
+        for (let i = 0; i < BUFFER_CAPACITY; i++) {
+          const item = boundedState.buffer[i];
+          slotsHtml += `
+            <div class="w-14 h-16 rounded-xl border ${item ? 'border-cyan-500 bg-cyan-950/60 shadow-md shadow-cyan-500/20' : 'border-slate-800 bg-slate-950 border-dashed'} flex flex-col items-center justify-center p-1">
+              <span class="text-[9px] text-slate-500">Slot ${i}</span>
+              <span class="font-mono text-sm font-bold ${item ? 'text-cyan-300' : 'text-slate-700'}">${item ? item : 'Ø'}</span>
+            </div>
+          `;
+        }
+
+        stage.innerHTML = `
+          <div class="w-full max-w-xl flex flex-col items-center gap-6 py-2">
+            <!-- Producer & Consumer Nodes -->
+            <div class="flex items-center justify-between w-full px-4">
+              <div class="flex items-center gap-3 bg-slate-950 p-3 rounded-xl border ${boundedState.prodState === 'WAITING' ? 'border-amber-500' : 'border-slate-800'}">
+                <div class="w-8 h-8 rounded-lg bg-emerald-950 border border-emerald-500 flex items-center justify-center text-emerald-300 font-bold text-xs">P</div>
+                <div>
+                  <div class="text-xs font-bold text-white">Producer</div>
+                  <div class="text-[10px] ${boundedState.prodState === 'WAITING' ? 'text-amber-400 font-bold' : 'text-slate-400'}">${boundedState.prodState}</div>
+                </div>
+              </div>
+
+              <div class="text-xs font-mono text-center px-4">
+                <span class="text-slate-400 block mb-1">Semaphores</span>
+                <span class="px-2 py-0.5 rounded bg-slate-950 text-indigo-300 border border-slate-800">empty: ${boundedState.emptyPermits}</span>
+                <span class="px-2 py-0.5 rounded bg-slate-950 text-cyan-300 border border-slate-800 ml-1">full: ${boundedState.fullPermits}</span>
+              </div>
+
+              <div class="flex items-center gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                <div>
+                  <div class="text-xs font-bold text-white text-right">Consumer</div>
+                  <div class="text-[10px] text-slate-400 text-right">${boundedState.consState}</div>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-cyan-950 border border-cyan-500 flex items-center justify-center text-cyan-300 font-bold text-xs">C</div>
+              </div>
+            </div>
+
+            <!-- Bounded Buffer Array Visualizer -->
+            <div class="bg-slate-950 border-2 border-slate-800 rounded-2xl p-5 w-full flex flex-col items-center">
+              <span class="text-xs text-slate-400 font-mono mb-3">Bounded Queue Array [Capacity: 5]</span>
+              <div class="flex items-center gap-2">
+                ${slotsHtml}
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (currentScenario === 'dining') {
+        title.textContent = `Dining Philosophers: ${scenarioMode.dining === 'deadlock' ? 'Deadlock via Circular Wait' : 'Deadlock-Free Asymmetric Solution'}`;
+        
+        // Circular table layout SVG
+        let philsSvg = '';
+        const coords = [
+          { cx: 200, cy: 50 },  // P0
+          { cx: 310, cy: 130 }, // P1
+          { cx: 270, cy: 260 }, // P2
+          { cx: 130, cy: 260 }, // P3
+          { cx: 90, cy: 130 }   // P4
+        ];
+        const forkCoords = [
+          { x: 260, y: 80 },  // Fork 0 between P0, P1
+          { x: 300, y: 200 }, // Fork 1 between P1, P2
+          { x: 200, y: 275 }, // Fork 2 between P2, P3
+          { x: 100, y: 200 }, // Fork 3 between P3, P4
+          { x: 135, y: 80 }   // Fork 4 between P4, P0
+        ];
+
+        coords.forEach((c, i) => {
+          const st = diningState.phils[i];
+          let color = '#475569';
+          if (st === 'EATING') color = '#10b981';
+          if (st === 'HOLDING_ONE') color = '#f59e0b';
+          if (diningState.isDeadlocked) color = '#f43f5e';
+
+          philsSvg += `
+            <circle cx="${c.cx}" cy="${c.cy}" r="24" fill="${color}" stroke="#1e293b" stroke-width="3" />
+            <text x="${c.cx}" y="${c.cy + 4}" fill="#ffffff" font-size="11" font-weight="bold" text-anchor="middle">P${i}</text>
+          `;
+        });
+
+        forkCoords.forEach((f, i) => {
+          const held = diningState.forks[i] !== -1;
+          const color = held ? (diningState.isDeadlocked ? '#f43f5e' : '#6366f1') : '#64748b';
+          philsSvg += `
+            <rect x="${f.x-8}" y="${f.y-8}" width="16" height="16" rx="4" fill="${color}" stroke="#0f172a" stroke-width="2"/>
+            <text x="${f.x}" y="${f.y+4}" fill="#fff" font-size="8" font-weight="bold" text-anchor="middle">F${i}</text>
+          `;
+        });
+
+        stage.innerHTML = `
+          <div class="flex flex-col items-center">
+            <svg width="400" height="320" viewBox="0 0 400 320">
+              <!-- Table Surface -->
+              <circle cx="200" cy="160" r="110" fill="#0f172a" stroke="#334155" stroke-width="3" stroke-dasharray="4" />
+              <text x="200" y="165" fill="#475569" font-size="12" text-anchor="middle" font-weight="bold">Table</text>
+              ${philsSvg}
+            </svg>
+            <div class="text-[11px] text-slate-400 mt-2 font-mono">
+              ${diningState.isDeadlocked ? '<span class="text-rose-400 font-bold">CIRCULAR WAIT CONDITION: P0 holds F0, P1 holds F1, P2 holds F2, P3 holds F3, P4 holds F4.</span>' : 'Even philosophers pick Left first; odd pick Right first (No cycle possible).'}
+            </div>
+          </div>
+        `;
+      } else if (currentScenario === 'deadlock') {
+        title.textContent = `Deadlock Simulation: ${scenarioMode.deadlock === 'cycle' ? 'Circular Wait {T1 -> R2 -> T2 -> R1 -> T1}' : 'Resource Hierarchy Elimination'}`;
+        stage.innerHTML = `
+          <div class="w-full max-w-lg flex flex-col items-center gap-6 py-4">
+            <div class="grid grid-cols-2 gap-12 w-full">
+              <!-- T1 -->
+              <div class="bg-slate-950 p-4 rounded-xl border ${deadlockScenarioState.isDeadlocked ? 'border-rose-500 pulse-danger' : 'border-slate-800'} text-center">
+                <span class="text-xs font-bold text-white block">Thread T1</span>
+                <span class="text-[10px] text-slate-400 font-mono">${deadlockScenarioState.t1}</span>
+                <div class="mt-2 text-[10px] text-indigo-300">Holds: R1 | Wants: R2</div>
+              </div>
+
+              <!-- T2 -->
+              <div class="bg-slate-950 p-4 rounded-xl border ${deadlockScenarioState.isDeadlocked ? 'border-rose-500 pulse-danger' : 'border-slate-800'} text-center">
+                <span class="text-xs font-bold text-white block">Thread T2</span>
+                <span class="text-[10px] text-slate-400 font-mono">${deadlockScenarioState.t2}</span>
+                <div class="mt-2 text-[10px] text-cyan-300">Holds: R2 | Wants: R1</div>
+              </div>
+            </div>
+
+            <!-- Visual Cycle Ring -->
+            <div class="bg-slate-950 p-4 rounded-2xl border ${deadlockScenarioState.isDeadlocked ? 'border-rose-500 bg-rose-950/20' : 'border-slate-800'} text-center w-full">
+              <span class="text-xs font-mono font-bold ${deadlockScenarioState.isDeadlocked ? 'text-rose-400' : 'text-slate-400'}">
+                ${deadlockScenarioState.isDeadlocked ? 'DEADLOCK ACTIVE: Circular Dependency Identified' : 'Order: Strict Resource Leveling Active'}
+              </span>
+              <div class="flex items-center justify-around mt-3 text-xs font-mono">
+                <span class="px-2 py-1 bg-slate-900 rounded border border-slate-800 text-indigo-300">R1: ${deadlockScenarioState.r1}</span>
+                <i data-lucide="${deadlockScenarioState.isDeadlocked ? 'refresh-cw' : 'arrow-right'}" class="w-4 h-4 ${deadlockScenarioState.isDeadlocked ? 'text-rose-400 animate-spin' : 'text-slate-500'}"></i>
+                <span class="px-2 py-1 bg-slate-900 rounded border border-slate-800 text-cyan-300">R2: ${deadlockScenarioState.r2}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      lucide.createIcons();
+    }
+
+    /* ==========================================================
+       SIDEBAR: THREAD CARDS & RESOURCE CARDS RENDERING
+       ========================================================== */
+    function renderThreadCards() {
+      const list = document.getElementById('threadCardsList');
+      let threads = [];
+
+      if (currentScenario === 'race') {
+        let t1_st = raceState.lockOwner === 'T1' ? 'RUNNING' : 'READY';
+        let t2_st = raceState.lockOwner === 'T2' ? 'RUNNING' : (raceState.lockOwner === 'T1' ? 'WAITING' : 'READY');
+        threads = [
+          { id: 'T1', state: t1_st, info: 'Worker A (counter++)' },
+          { id: 'T2', state: t2_st, info: 'Worker B (counter++)' }
+        ];
+      } else if (currentScenario === 'bounded') {
+        threads = [
+          { id: 'Producer', state: boundedState.prodState, info: 'Appends to queue' },
+          { id: 'Consumer', state: boundedState.consState, info: 'Pops from queue' }
+        ];
+      } else if (currentScenario === 'dining') {
+        threads = diningState.phils.map((s, idx) => ({
+          id: `P${idx}`,
+          state: s === 'HOLDING_ONE' ? 'WAITING' : s,
+          info: `Philosopher ${idx}`
+        }));
+      } else if (currentScenario === 'deadlock') {
+        threads = [
+          { id: 'T1', state: deadlockScenarioState.t1, info: 'Holds R1' },
+          { id: 'T2', state: deadlockScenarioState.t2, info: 'Holds R2' }
+        ];
+      }
+
+      document.getElementById('activeThreadCount').textContent = `${threads.length} Threads`;
+
+      list.innerHTML = threads.map(t => {
+        let badgeColor = 'bg-slate-800 text-slate-300';
+        if (t.state === 'RUNNING') badgeColor = 'bg-emerald-950 text-emerald-300 border border-emerald-700';
+        if (t.state === 'WAITING') badgeColor = 'bg-amber-950 text-amber-300 border border-amber-700 animate-pulse';
+        if (t.state === 'EATING') badgeColor = 'bg-emerald-950 text-emerald-300 border border-emerald-700';
+        if (deadlockScenarioState.isDeadlocked || diningState.isDeadlocked) badgeColor = 'bg-rose-950 text-rose-300 border border-rose-700';
+
+        return `
+          <div class="flex items-center justify-between p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full ${t.state === 'RUNNING' || t.state === 'EATING' ? 'bg-emerald-400' : 'bg-slate-500'}"></span>
+              <div>
+                <span class="font-bold text-white">${t.id}</span>
+                <span class="text-[10px] text-slate-500 block">${t.info}</span>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold ${badgeColor}">
+              ${t.state}
+            </span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderResourceCards() {
+      const list = document.getElementById('resourceCardsList');
+      let resources = [];
+
+      if (currentScenario === 'race') {
+        resources = [
+          { name: 'Shared Memory Counter', type: 'Int Variable', state: `Val: ${raceState.counter}` },
+          { name: 'Critical Section Lock', type: 'ReentrantLock', state: raceState.lockOwner ? `LOCKED by ${raceState.lockOwner}` : 'UNLOCKED' }
+        ];
+      } else if (currentScenario === 'bounded') {
+        resources = [
+          { name: 'Buffer Mutex', type: 'Binary Semaphore', state: boundedState.mutex ? '1 (Free)' : '0 (Locked)' },
+          { name: 'Empty Slots', type: 'Counting Semaphore', state: `${boundedState.emptyPermits} / 5 Permits` },
+          { name: 'Full Slots', type: 'Counting Semaphore', state: `${boundedState.fullPermits} / 5 Permits` }
+        ];
+      } else if (currentScenario === 'dining') {
+        resources = diningState.forks.map((f, idx) => ({
+          name: `Chopstick / Fork F${idx}`,
+          type: 'Mutex',
+          state: f === -1 ? 'On Table (Free)' : `Held by P${f}`
+        }));
+      } else if (currentScenario === 'deadlock') {
+        resources = [
+          { name: 'Resource R1', type: 'Single-Instance', state: deadlockScenarioState.r1 },
+          { name: 'Resource R2', type: 'Single-Instance', state: deadlockScenarioState.r2 }
+        ];
+      }
+
+      list.innerHTML = resources.map(r => `
+        <div class="flex items-center justify-between p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-xs">
+          <div>
+            <span class="font-bold text-white block">${r.name}</span>
+            <span class="text-[10px] text-slate-500 font-mono">${r.type}</span>
+          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-900 border border-slate-700 text-slate-300">
+            ${r.state}
+          </span>
+        </div>
+      `).join('');
+    }
+
+    /* ==========================================================
+       TIMELINE / GANTT RENDERING
+       ========================================================== */
+    function renderTimeline() {
+      const container = document.getElementById('timelineContainer');
+      const keys = ['T1', 'T2'];
+
+      container.innerHTML = keys.map(k => {
+        const slots = timelineHistory[k].slice(-24); // Show last 24 ticks
+        const slotsHtml = slots.map(st => {
+          let bg = 'bg-slate-800';
+          if (st === 'RUNNING' || st === 'EATING') bg = 'bg-emerald-500';
+          if (st === 'WAITING') bg = 'bg-amber-500';
+          if (st === 'DEADLOCKED') bg = 'bg-rose-500';
+          return `<div class="h-5 w-3.5 rounded-sm ${bg} shrink-0 transition-all" title="${k}: ${st}"></div>`;
+        }).join('');
+
+        return `
+          <div class="flex items-center gap-3">
+            <span class="w-12 text-[11px] font-mono text-slate-400 font-semibold">${k}:</span>
+            <div class="flex items-center gap-1 flex-1 bg-slate-900/60 p-1 rounded-lg min-h-[28px]">
+              ${slotsHtml.length > 0 ? slotsHtml : '<span class="text-[10px] text-slate-600 font-mono">Awaiting execution...</span>'}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* ==========================================================
+       LOGGING & EXPORT
+       ========================================================== */
+    function logEvent(type, text) {
+      const time = new Date().toLocaleTimeString().split(' ')[0];
+      const entry = { time, tick: clockTick, type, text };
+      eventLogs.unshift(entry);
+
+      const logBox = document.getElementById('eventLogContainer');
+      let badgeStyle = 'text-slate-400';
+      if (type === 'LOCK' || type === 'ACQUIRE') badgeStyle = 'text-cyan-400 font-bold';
+      if (type === 'WAIT') badgeStyle = 'text-amber-400 font-bold';
+      if (type === 'DEADLOCK') badgeStyle = 'text-rose-400 font-extrabold';
+      if (type === 'WRITE') badgeStyle = 'text-emerald-400';
+
+      logBox.innerHTML = eventLogs.map(l => `
+        <div class="text-[11px] leading-tight pb-1 border-b border-slate-900 flex items-start gap-1.5">
+          <span class="text-slate-600 shrink-0">[t=${l.tick}]</span>
+          <span class="${badgeStyle} shrink-0">${l.type}:</span>
+          <span class="text-slate-300 break-words">${l.text}</span>
+        </div>
+      `).join('');
+    }
+
+    function clearEventLog() {
+      eventLogs = [];
+      document.getElementById('eventLogContainer').innerHTML = '<span class="text-[10px] text-slate-600">Logs cleared.</span>';
+    }
+
+    function exportEventLog() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(eventLogs, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `ThreadLock_Event_Log_t${clockTick}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    /* ==========================================================
+       TAB 2: BANKER'S ALGORITHM DATA & SOLVER ENGINE
+       ========================================================== */
+    const NUM_PROCS = 5;
+    const NUM_RES = 3;
+    const procNames = ['P0', 'P1', 'P2', 'P3', 'P4'];
+
+    let bankerData = {
+      allocation: [
+        [0, 1, 0], // P0
+        [2, 0, 0], // P1
+        [3, 0, 2], // P2
+        [2, 1, 1], // P3
+        [0, 0, 2]  // P4
+      ],
+      max: [
+        [7, 5, 3], // P0
+        [3, 2, 2], // P1
+        [9, 0, 2], // P2
+        [2, 2, 2], // P3
+        [4, 3, 3]  // P4
+      ],
+      available: [3, 3, 2]
+    };
+
+    function initBankerMatrixInputs() {
+      const allocBox = document.getElementById('bankerAllocInputs');
+      const maxBox = document.getElementById('bankerMaxInputs');
+
+      let allocHtml = '';
+      let maxHtml = '';
+
+      for (let i = 0; i < NUM_PROCS; i++) {
+        allocHtml += `
+          <div class="grid grid-cols-4 gap-2 items-center">
+            <span class="font-mono text-xs text-indigo-400 font-bold">${procNames[i]}</span>
+            <input type="number" min="0" max="20" id="alloc_${i}_0" value="${bankerData.allocation[i][0]}" class="bg-slate-900 border border-slate-700 text-center rounded py-1 font-mono text-xs text-slate-200">
+            <input type="number" min="0" max="20" id="alloc_${i}_1" value="${bankerData.allocation[i][1]}" class="bg-slate-900 border border-slate-700 text-center rounded py-1 font-mono text-xs text-slate-200">
+            <input type="number" min="0" max="20" id="alloc_${i}_2" value="${bankerData.allocation[i][2]}" class="bg-slate-900 border border-slate-700 text-center rounded py-1 font-mono text-xs text-slate-200">
+          </div>
+        `;
+        maxHtml += `
+          <div class="grid grid-cols-4 gap-2 items-center">
+            <span class="font-mono text-xs text-purple-400 font-bold">${procNames[i]}</span>
+            <input type="number" min="0" max="20" id="max_${i}_0" value="${bankerData.max[i][0]}" class="bg-slate-900 border border-slate-700 text-center rounded py-1 font-mono text-xs text-slate-200">
+            <input type="number" min="0" max="20" id="max_${i}_1" value="${bankerData.max[i][1]}" class="bg-slate-900 border border-slate-700 text-center rounded py-1 font-mono text-xs text-slate-200">
+            <input type="number" min="0" max="20" id="max_${i}_2" value="${bankerData.max[i][2]}" class="bg-slate-900 border border-slate-700 text-center rounded py-1 font-mono text-xs text-slate-200">
+          </div>
+        `;
+      }
+
+      allocBox.innerHTML = allocHtml;
+      maxBox.innerHTML = maxHtml;
+      updateNeedMatrixPreview();
+    }
+
+    function readBankerInputsFromUI() {
+      for (let i = 0; i < NUM_PROCS; i++) {
+        for (let j = 0; j < NUM_RES; j++) {
+          bankerData.allocation[i][j] = parseInt(document.getElementById(`alloc_${i}_${j}`).value) || 0;
+          bankerData.max[i][j] = parseInt(document.getElementById(`max_${i}_${j}`).value) || 0;
+        }
+      }
+      bankerData.available[0] = parseInt(document.getElementById('avail_A').value) || 0;
+      bankerData.available[1] = parseInt(document.getElementById('avail_B').value) || 0;
+      bankerData.available[2] = parseInt(document.getElementById('avail_C').value) || 0;
+    }
+
+    function updateNeedMatrixPreview() {
+      readBankerInputsFromUI();
+      const needBox = document.getElementById('bankerNeedDisplay');
+      let html = '<div class="grid grid-cols-4 gap-2 text-center text-slate-500 font-bold pb-1 text-[11px]"><div>Proc</div><div>R_A</div><div>R_B</div><div>R_C</div></div>';
+
+      for (let i = 0; i < NUM_PROCS; i++) {
+        const needA = Math.max(0, bankerData.max[i][0] - bankerData.allocation[i][0]);
+        const needB = Math.max(0, bankerData.max[i][1] - bankerData.allocation[i][1]);
+        const needC = Math.max(0, bankerData.max[i][2] - bankerData.allocation[i][2]);
+
+        html += `
+          <div class="grid grid-cols-4 gap-2 text-center py-0.5 border-b border-slate-900">
+            <span class="text-amber-400 font-bold">${procNames[i]}</span>
+            <span>${needA}</span>
+            <span>${needB}</span>
+            <span>${needC}</span>
+          </div>
+        `;
+      }
+      needBox.innerHTML = html;
+    }
+
+    function loadBankerPreset(type) {
+      if (type === 'standardSafe') {
+        bankerData.allocation = [[0,1,0], [2,0,0], [3,0,2], [2,1,1], [0,0,2]];
+        bankerData.max = [[7,5,3], [3,2,2], [9,0,2], [2,2,2], [4,3,3]];
+        bankerData.available = [3, 3, 2];
+      } else {
+        // Unsafe scenario (starved Available vector)
+        bankerData.allocation = [[0,1,0], [3,0,1], [3,0,2], [2,1,1], [0,0,2]];
+        bankerData.max = [[7,5,3], [3,2,2], [9,0,2], [4,2,2], [5,3,3]];
+        bankerData.available = [0, 0, 0];
+      }
+
+      // Sync to inputs
+      for (let i = 0; i < NUM_PROCS; i++) {
+        for (let j = 0; j < NUM_RES; j++) {
+          document.getElementById(`alloc_${i}_${j}`).value = bankerData.allocation[i][j];
+          document.getElementById(`max_${i}_${j}`).value = bankerData.max[i][j];
+        }
+      }
+      document.getElementById('avail_A').value = bankerData.available[0];
+      document.getElementById('avail_B').value = bankerData.available[1];
+      document.getElementById('avail_C').value = bankerData.available[2];
+
+      updateNeedMatrixPreview();
+      runBankersAlgorithm();
+    }
+
+    function runBankersAlgorithm() {
+      updateNeedMatrixPreview();
+
+      const alloc = bankerData.allocation;
+      const max = bankerData.max;
+      const work = [...bankerData.available];
+      const finish = [false, false, false, false, false];
+      const safeSequence = [];
+      const logs = [];
+
+      // Calculate Need
+      const need = [];
+      for (let i = 0; i < NUM_PROCS; i++) {
+        need[i] = [
+          max[i][0] - alloc[i][0],
+          max[i][1] - alloc[i][1],
+          max[i][2] - alloc[i][2]
+        ];
+      }
+
+      logs.push(`Initial Work Vector = [${work.join(', ')}]`);
+
+      let progress = true;
+      while (progress) {
+        progress = false;
+
+        for (let i = 0; i < NUM_PROCS; i++) {
+          if (!finish[i]) {
+            // Check if Need_i <= Work
+            if (need[i][0] <= work[0] && need[i][1] <= work[1] && need[i][2] <= work[2]) {
+              // Can fulfill process i
+              logs.push(`✔ Process ${procNames[i]}: Need [${need[i].join(',')}] ≤ Work [${work.join(',')}]. Allocating.`);
+              
+              // Process runs and terminates, releasing held resources: Work = Work + Allocation_i
+              work[0] += alloc[i][0];
+              work[1] += alloc[i][1];
+              work[2] += alloc[i][2];
+
+              logs.push(`   ↳ ${procNames[i]} finishes, releases [${alloc[i].join(',')}]. New Work = [${work.join(',')}]`);
+
+              finish[i] = true;
+              safeSequence.push(procNames[i]);
+              progress = true;
+            } else {
+              logs.push(`✖ Process ${procNames[i]}: Need [${need[i].join(',')}] > Work [${work.join(',')}]. Cannot allocate.`);
+            }
+          }
+        }
+      }
+
+      // Check if all processes finished
+      const isSafe = finish.every(f => f === true);
+      const badge = document.getElementById('safetyBadge');
+      const seqBar = document.getElementById('safeSequenceBar');
+      const seqChips = document.getElementById('safeSeqChips');
+      const logContainer = document.getElementById('bankerStepLogs');
+
+      if (isSafe) {
+        badge.textContent = 'STATE: SAFE';
+        badge.className = 'px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-950 text-emerald-300 border border-emerald-700';
+        seqBar.classList.remove('hidden');
+        seqChips.innerHTML = safeSequence.map((p, idx) => `
+          <span class="px-3 py-1 rounded-lg bg-indigo-950 border border-indigo-600 text-indigo-200 font-mono text-xs font-bold flex items-center gap-1.5">
+            ${idx > 0 ? '&rarr;' : ''} ${p}
+          </span>
+        `).join('');
+      } else {
+        badge.textContent = 'STATE: UNSAFE (Potential Deadlock)';
+        badge.className = 'px-3 py-0.5 rounded-full text-xs font-bold bg-rose-950 text-rose-300 border border-rose-700';
+        seqBar.classList.add('hidden');
+        logs.push(`🚨 DEADLOCK RISK: No process can complete with available resources! Deadlocked threads: ${finish.map((f, i) => !f ? procNames[i] : null).filter(Boolean).join(', ')}`);
+      }
+
+      logContainer.innerHTML = logs.map(l => `<div class="py-0.5">${l}</div>`).join('');
+    }
+
+    /* ==========================================================
+       TAB 3: RESOURCE ALLOCATION GRAPH (RAG) & CYCLE DETECTOR
+       ========================================================== */
+    // Graph definition: Nodes and Edges
+    // Nodes: P1, P2, P3 (Processes), R1, R2, R3 (Resources)
+    const ragNodes = [
+      { id: 'P1', type: 'P', x: 140, y: 100, label: 'P1' },
+      { id: 'P2', type: 'P', x: 460, y: 100, label: 'P2' },
+      { id: 'P3', type: 'P', x: 300, y: 300, label: 'P3' },
+      { id: 'R1', type: 'R', x: 300, y: 80, label: 'R1' },
+      { id: 'R2', type: 'R', x: 440, y: 240, label: 'R2' },
+      { id: 'R3', type: 'R', x: 160, y: 240, label: 'R3' }
+    ];
+
+    // Edges list
+    let ragEdges = [
+      { id: 'e1', from: 'P1', to: 'R1', type: 'REQUEST', active: true },   // P1 requests R1
+      { id: 'e2', from: 'R1', to: 'P2', type: 'ASSIGN', active: true },    // R1 held by P2
+      { id: 'e3', from: 'P2', to: 'R2', type: 'REQUEST', active: true },   // P2 requests R2
+      { id: 'e4', from: 'R2', to: 'P3', type: 'ASSIGN', active: true },    // R2 held by P3
+      { id: 'e5', from: 'P3', to: 'R3', type: 'REQUEST', active: false },  // Toggleable
+      { id: 'e6', from: 'R3', to: 'P1', type: 'ASSIGN', active: true }     // R3 held by P1
+    ];
+
+    function initRAGGraph() {
+      renderRAGControls();
+      drawRAGSvg();
+    }
+
+    function renderRAGControls() {
+      const container = document.getElementById('ragEdgeControls');
+      container.innerHTML = ragEdges.map(e => `
+        <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800">
+          <span class="font-mono text-[11px] text-slate-300">
+            ${e.from} &rarr; ${e.to} <span class="text-[10px] text-slate-500">(${e.type})</span>
+          </span>
+          <button onclick="toggleRAGEdge('${e.id}')" class="px-2.5 py-1 rounded text-[10px] font-bold ${e.active ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}">
+            ${e.active ? 'Enabled' : 'Disabled'}
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function toggleRAGEdge(id) {
+      const edge = ragEdges.find(e => e.id === id);
+      if (edge) edge.active = !edge.active;
+      renderRAGControls();
+      drawRAGSvg();
+    }
+
+    function loadRAGPreset(type) {
+      if (type === 'cycle') {
+        // Complete cycle: P1 -> R1 -> P2 -> R2 -> P3 -> R3 -> P1
+        ragEdges.forEach(e => e.active = true);
+      } else {
+        // Break cycle: disable P3 -> R3
+        ragEdges.forEach(e => {
+          if (e.id === 'e5') e.active = false;
+          else e.active = true;
+        });
+      }
+      renderRAGControls();
+      drawRAGSvg();
+      runRAGCycleDetection();
+    }
+
+    function drawRAGSvg(cycleNodes = []) {
+      const edgesLayer = document.getElementById('ragEdgesLayer');
+      const nodesLayer = document.getElementById('ragNodesLayer');
+
+      // Draw Edges
+      let edgesSvg = '';
+      ragEdges.forEach(e => {
+        if (!e.active) return;
+        const source = ragNodes.find(n => n.id === e.from);
+        const target = ragNodes.find(n => n.id === e.to);
+
+        const inCycle = cycleNodes.includes(e.from) && cycleNodes.includes(e.to);
+        const strokeColor = inCycle ? '#f43f5e' : (e.type === 'ASSIGN' ? '#10b981' : '#f59e0b');
+        const marker = inCycle ? 'url(#arrow-cycle)' : (e.type === 'ASSIGN' ? 'url(#arrow-assign)' : 'url(#arrow-request)');
+        const strokeWidth = inCycle ? '3.5' : '2';
+
+        edgesSvg += `
+          <line x1="${source.x}" y1="${source.y}" x2="${target.x}" y2="${target.y}" 
+                stroke="${strokeColor}" stroke-width="${strokeWidth}" 
+                stroke-dasharray="${e.type === 'REQUEST' ? '4' : '0'}"
+                marker-end="${marker}" />
+        `;
+      });
+      edgesLayer.innerHTML = edgesSvg;
+
+      // Draw Nodes
+      let nodesSvg = '';
+      ragNodes.forEach(n => {
+        const inCycle = cycleNodes.includes(n.id);
+
+        if (n.type === 'P') {
+          // Process Node: Circle
+          nodesSvg += `
+            <g class="cursor-pointer">
+              <circle cx="${n.x}" cy="${n.y}" r="22" 
+                      fill="${inCycle ? '#881337' : '#1e1b4b'}" 
+                      stroke="${inCycle ? '#f43f5e' : '#6366f1'}" 
+                      stroke-width="${inCycle ? '3' : '2'}" />
+              <text x="${n.x}" y="${n.y + 4}" fill="#ffffff" font-size="11" font-weight="bold" font-family="monospace" text-anchor="middle">${n.label}</text>
+            </g>
+          `;
+        } else {
+          // Resource Node: Rounded Square with unit dots inside
+          nodesSvg += `
+            <g class="cursor-pointer">
+              <rect x="${n.x - 22}" y="${n.y - 22}" width="44" height="44" rx="8" 
+                    fill="${inCycle ? '#881337' : '#042f2e'}" 
+                    stroke="${inCycle ? '#f43f5e' : '#14b8a6'}" 
+                    stroke-width="${inCycle ? '3' : '2'}" />
+              <!-- Single unit dot inside -->
+              <circle cx="${n.x}" cy="${n.y - 4}" r="4" fill="#ffffff" />
+              <text x="${n.x}" y="${n.y + 14}" fill="#a7f3d0" font-size="9" font-weight="bold" font-family="monospace" text-anchor="middle">${n.label}</text>
+            </g>
+          `;
+        }
+      });
+      nodesLayer.innerHTML = nodesSvg;
+    }
+
+    // Directed Graph Cycle Detection using DFS
+    function runRAGCycleDetection() {
+      const adj = {};
+      ragNodes.forEach(n => adj[n.id] = []);
+      ragEdges.filter(e => e.active).forEach(e => {
+        adj[e.from].push(e.to);
+      });
+
+      const visited = {};
+      const recStack = {};
+      let cyclePath = [];
+      let foundCycle = false;
+
+      function dfs(u, path) {
+        visited[u] = true;
+        recStack[u] = true;
+        path.push(u);
+
+        for (const v of adj[u]) {
+          if (!visited[v]) {
+            if (dfs(v, path)) return true;
+          } else if (recStack[v]) {
+            // Found cycle!
+            const cycleStartIdx = path.indexOf(v);
+            cyclePath = path.slice(cycleStartIdx);
+            cyclePath.push(v);
+            return true;
+          }
+        }
+
+        path.pop();
+        recStack[u] = false;
+        return false;
+      }
+
+      for (const node of ragNodes) {
+        if (!visited[node.id]) {
+          if (dfs(node.id, [])) {
+            foundCycle = true;
+            break;
+          }
+        }
+      }
+
+      const statusText = document.getElementById('ragStatusText');
+      const badge = document.getElementById('ragCycleBadge');
+
+      if (foundCycle) {
+        statusText.innerHTML = `⚠️ <strong>DEADLOCK DETECTED!</strong> Directed cycle identified: <span class="text-rose-400 font-mono font-bold">${cyclePath.join(' &rarr; ')}</span>. Single-instance resources imply circular wait deadlock.`;
+        badge.textContent = 'Cycle Found (Deadlock)';
+        badge.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-rose-950 text-rose-300 border border-rose-700 animate-pulse';
+        drawRAGSvg(cyclePath);
+      } else {
+        statusText.innerHTML = `✔ <strong>GRAPH IS ACYCLIC:</strong> No circular wait conditions detected. Processes can satisfy resource allocations safely.`;
+        badge.textContent = 'Acyclic (Safe)';
+        badge.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700';
+        drawRAGSvg([]);
+      }
+    }
+  </script>
+</body>
+</html>
